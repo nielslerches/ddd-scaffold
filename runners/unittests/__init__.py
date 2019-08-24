@@ -1,14 +1,11 @@
-import os
 import pkgutil
 import unittest
 
 from importlib import import_module
-from importlib.util import find_spec
 
 from punq import Container
 
-from shared import set_container, get_container
-
+from shared import set_container
 from shared.repositories.base import Repository
 from shared.repositories.memory import MemoryRepository
 from shared.repositories.users import UserRepository, UserMemoryRepository
@@ -21,8 +18,6 @@ container.register(UserService)
 
 set_container(container)
 
-import runners.unittests.tests
-
 
 def get_submodules(package):
     for importer, modname, ispkg in pkgutil.iter_modules(package.__path__):
@@ -30,7 +25,13 @@ def get_submodules(package):
         yield submodule
 
         if ispkg:
-            yield from get_submodules(importer.find_module(submodule.__spec__.name).load_module(submodule.__spec__.name))
+            yield from get_submodules(
+                importer.find_module(
+                    submodule.__spec__.name,
+                ).load_module(
+                    submodule.__spec__.name,
+                ),
+            )
 
 
 def get_module_test_cases(module):
@@ -42,11 +43,14 @@ def get_module_test_cases(module):
 
 def run():
     test_case_classes = []
-    for module in (runners.unittests.tests, *get_submodules(runners.unittests.tests)):
+    test_module = import_module('runners.unittests.tests')
+    for module in (test_module, *get_submodules(test_module)):
         for test_case_cls in get_module_test_cases(module):
             test_case_classes.append(test_case_cls)
 
     while test_case_classes:
-        suite = unittest.defaultTestLoader.loadTestsFromTestCase(test_case_classes.pop(0))
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(
+            test_case_classes.pop(0),
+        )
 
     unittest.TextTestRunner().run(suite)
