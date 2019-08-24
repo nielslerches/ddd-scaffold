@@ -14,7 +14,6 @@ from shared.common_query import (
     UnaryOperation,
     Has,
 )
-from shared.repositories.base import Repository
 
 
 def nwise(xs, n=2):
