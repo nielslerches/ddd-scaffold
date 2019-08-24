@@ -11,7 +11,7 @@
 ## Getting started
 ```bash
 wget -o ./ddd-scaffold-master.zip https://github.com/nielslerches/ddd-scaffold/archive/master.zip
-unzip ddd-scaffold-master.zip && ddd-scaffold-master.zip
+unzip ddd-scaffold-master.zip && rm ddd-scaffold-master.zip
 mv ddd-scaffold-master <project name>
 cd <project name>
 python3 -mvenv .venv
