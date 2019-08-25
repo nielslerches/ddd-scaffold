@@ -17,6 +17,7 @@ from shared.common_query import (
     Neg,
     UnaryOperation,
     Has,
+    Count,
 )
 from shared.querysets.base import QuerySet
 
@@ -98,6 +99,13 @@ class LambdaCompiler:
                 queryset = queryset if node.query is None else queryset.filter(node.query)
                 return len(list(queryset)) > 0
             return compiled_Has
+
+        elif isinstance(node, Count):
+            def compiled_Count(item):
+                queryset = MemoryQuerySet(get_objects=lambda: self.get_value(item, node.field), compiler=self)
+                queryset = queryset if node.query is None else queryset.filter(node.query)
+                return len(list(queryset))
+            return compiled_Count
 
         else:
             return node

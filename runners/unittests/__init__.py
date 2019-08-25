@@ -44,13 +44,10 @@ def get_module_test_cases(module):
 def run():
     test_case_classes = []
     test_module = import_module('runners.unittests.tests')
-    for module in (test_module, *get_submodules(test_module)):
+    for module in get_submodules(test_module):
         for test_case_cls in get_module_test_cases(module):
             test_case_classes.append(test_case_cls)
 
-    while test_case_classes:
-        suite = unittest.defaultTestLoader.loadTestsFromTestCase(
-            test_case_classes.pop(0),
-        )
-
-    unittest.TextTestRunner().run(suite)
+    for test_case_cls in test_case_classes:
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(test_case_cls)
+        unittest.TextTestRunner().run(suite)
