@@ -6,14 +6,14 @@ from importlib import import_module
 from punq import Container
 
 from shared import set_container
-from shared.repositories.base import Repository
-from shared.repositories.memory import MemoryRepository
-from shared.repositories.users import UserRepository, UserMemoryRepository
+from shared.querysets.base import QuerySet
+from shared.querysets.memory import MemoryQuerySet
+from shared.querysets.users import UserQuerySet, UserMemoryQuerySet
 from shared.services import UserService
 
 container = Container()
-container.register(Repository, instance=MemoryRepository)
-container.register(UserRepository, factory=UserMemoryRepository)
+container.register(QuerySet, instance=MemoryQuerySet)
+container.register(UserQuerySet, factory=UserMemoryQuerySet)
 container.register(UserService)
 
 set_container(container)

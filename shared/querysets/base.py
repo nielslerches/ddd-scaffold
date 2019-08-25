@@ -1,0 +1,2 @@
+class QuerySet:
+    pass

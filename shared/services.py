@@ -3,13 +3,13 @@ from typing import Tuple
 
 from shared import get_container
 from shared.common_query import A, Has
-from shared.repositories.users import UserRepository
+from shared.querysets.users import UserQuerySet
 from shared.utils import SimpleLazyObject
 
 
 @dataclass(frozen=True)
 class UserService:
-    user_repository: UserRepository
+    user_queryset: UserQuerySet
     min_points_giftcard_value: Tuple[int, int, str] = (
         1000,
         250,
@@ -21,7 +21,7 @@ class UserService:
         return (
             (user, giftcard_value, reason)
             for user
-            in self.user_repository.filter(
+            in self.user_queryset.filter(
                 A('points') >= min_points,
             ).exclude(
                 Has('giftcards').where(A('reason') == reason),

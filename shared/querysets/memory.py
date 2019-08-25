@@ -1,5 +1,9 @@
+from dataclasses import dataclass, field
 from functools import reduce
 from itertools import islice, tee
+from typing import Callable, Any, Iterable, List
+
+import inspect
 
 from shared.common_query import (
     A,
@@ -14,6 +18,7 @@ from shared.common_query import (
     UnaryOperation,
     Has,
 )
+from shared.querysets.base import QuerySet
 
 
 def nwise(xs, n=2):
@@ -28,12 +33,9 @@ def isiterable(obj):
     return True
 
 
+@dataclass(frozen=True)
 class LambdaCompiler:
-    __slots__ = ('repository', 'get_value')
-
-    def __init__(self, repository, get_value=None):
-        self.repository = repository
-        self.get_value = get_value or getattr
+    get_value: Callable[[Any, str], Any] = field(default=getattr)
 
     def compile(self, node):
         if isinstance(node, A):
@@ -91,14 +93,21 @@ class LambdaCompiler:
             return lambda item: node.reducer(self.compile(node.operand)(item)) if isinstance(node.operand, LazyObject) else node.reducer(node.operand)
 
         elif isinstance(node, Has):
-            return lambda item: len(list(type(self.repository)(_get_entities=lambda: self.get_value(item, node.field), _compiler=self).filter(node.query if node.query is not None else (lambda item: True)))) > 0
+            def compiled_Has(item):
+                queryset = MemoryQuerySet(get_objects=lambda: self.get_value(item, node.field), compiler=self)
+                queryset = queryset if node.query is None else queryset.filter(node.query)
+                return len(list(queryset)) > 0
+            return compiled_Has
 
         else:
             return node
 
 
-class MemoryRepository:
-    __slots__ = ('_get_entities', '_compiler', '_pipeline')
+@dataclass(frozen=True)
+class MemoryQuerySet(QuerySet):
+    get_objects: Callable[[Any], Iterable] = field(default=lambda: [])
+    compiler: LambdaCompiler = field(default_factory=LambdaCompiler)
+    pipeline: List[Callable[[Any], Iterable]] = field(default_factory=list)
 
     class MultipleObjectsReturned(Exception):
         message = 'Multiple objects returned'
@@ -106,88 +115,88 @@ class MemoryRepository:
     class ObjectDoesNotExist(Exception):
         message = 'Object does not exist'
 
-    def __init__(self, _get_entities=None, _compiler=None, _pipeline=None):
-        self._get_entities = _get_entities or (lambda: [])
-        self._compiler = _compiler or LambdaCompiler(repository=self)
-        self._pipeline = _pipeline or []
-
     def all(self):
         return self
 
-    def filter(self, query):
-        callback = self._compiler.compile(query)
-        def _filter(entities):
+    def filter(self, *queries):
+        callbacks = [self.compiler.compile(query) for query in queries]
+
+        def _filter(objects):
             return [
-                entity
-                for entity
-                in entities
-                if callback(entity)
+                object
+                for object
+                in objects
+                if all(callback(object) for callback in callbacks)
             ]
+
         return type(self)(
-            _get_entities=self._get_entities,
-            _compiler=self._compiler,
-            _pipeline=self._pipeline + [_filter]
+            get_objects=self.get_objects,
+            compiler=self.compiler,
+            pipeline=self.pipeline + [_filter]
         )
 
-    def exclude(self, query):
-        callback = self._compiler.compile(query)
-        def _filter(entities):
+    def exclude(self, *queries):
+        callbacks = [self.compiler.compile(query) for query in queries]
+
+        def _exclude(objects):
             return [
-                entity
-                for entity
-                in entities
-                if not callback(entity)
+                object
+                for object
+                in objects
+                if any(not callback(object) for callback in callbacks)
             ]
+
         return type(self)(
-            _get_entities=self._get_entities,
-            _compiler=self._compiler,
-            _pipeline=self._pipeline + [_filter],
+            get_objects=self.get_objects,
+            compiler=self.compiler,
+            pipeline=self.pipeline + [_exclude],
         )
 
     def order_by(self, *fields):
-        def _order_by(entities):
-            entities = entities.copy()
+        def _order_by(objects):
+            objects = objects.copy()
             for field in reversed(fields):
                 if isinstance(field, Neg):
-                    entities.sort(key=lambda entity: self._compiler.compile(field.operand)(entity), reverse=True)
+                    objects.sort(key=lambda object: self.compiler.compile(field.operand)(object), reverse=True)
                 else:
-                    entities.sort(key=lambda entity: self._compiler.compile(field)(entity))
-            return entities
+                    objects.sort(key=lambda object: self.compiler.compile(field)(object))
+            return objects
+
         return type(self)(
-            _get_entities=self._get_entities,
-            _compiler=self._compiler,
-            _pipeline=self._pipeline + [_order_by]
+            get_objects=self.get_objects,
+            compiler=self.compiler,
+            pipeline=self.pipeline + [_order_by]
         )
 
-    def get(self, query):
-        entities = list(self.filter(query))
-        if len(entities) > 1:
+    def get(self, *queries):
+        objects = list(self.filter(*queries))
+        if len(objects) > 1:
             raise self.MultipleObjectsReturned
-        elif not entities:
+        elif not objects:
             raise self.ObjectDoesNotExist
-        return entities[0]
+        return objects[0]
 
     def first(self):
-        entities = list(self)
-        return entities[0] if entities else None
+        objects = list(self)
+        return objects[0] if objects else None
 
     def last(self):
-        entities = list(self)
-        return entities[-1] if entities else None
+        objects = list(self)
+        return objects[-1] if objects else None
 
     def __iter__(self):
-        entities = self._get_entities()
-        for pipe in self._pipeline:
-            entities = pipe(entities)
-        return iter(entities)
+        objects = self.get_objects()
+        for pipe in self.pipeline:
+            objects = pipe(objects)
+        return iter(objects)
 
     def __repr__(self):
-        entities = list(self)
+        objects = list(self)
         return '<{} [{}]>'.format(
             self.__class__.__name__,
             ', '.join(
-                repr(entity)
-                for entity
-                in entities[0:3]
-            ) + (', ...' if len(entities) > 3 else '')
+                repr(object)
+                for object
+                in objects[0:3]
+            ) + (', ...' if len(objects) > 3 else '')
         )
