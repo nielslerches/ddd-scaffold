@@ -5,8 +5,8 @@
 ## Features
 1. https://github.com/bobthemighty/punq for injecting dependencies (usually implementations of certain interfaces)
 2. Easily and quickly testable business logic with an included script.
-3. Uses a modified version of my own library https://github.com/nielslerches/common-query for querying a repository
-4.1. Included test uses an in-memory repository implementation for speed.
+3. Uses a modified version of my own library https://github.com/nielslerches/common-query for querying objects
+4.1. Included test uses an in-memory queryset implementation for speed.
 
 ## Getting started
 ```bash
