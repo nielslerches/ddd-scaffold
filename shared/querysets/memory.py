@@ -100,7 +100,7 @@ class LambdaCompiler:
         elif isinstance(node, Aggregation):
             def compiled_Aggregation(context):
                 if isinstance(context, MemoryQuerySet):
-                    return node.reducer(context.filter(node.query))
+                    return node.reducer(context)
                 return node.reducer(
                     MemoryQuerySet(
                         get_objects=lambda: self.get_value(context, node.field),
