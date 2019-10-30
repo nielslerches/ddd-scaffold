@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from typing import Tuple
 
 from shared import get_container
-from shared.common_query import A, Has
+from shared.common_query import A
+from shared.common_query.aggregations import Has
 from shared.querysets.users import UserQuerySet
 from shared.utils import SimpleLazyObject
 

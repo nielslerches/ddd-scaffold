@@ -3,7 +3,8 @@ import unittest
 from decimal import Decimal
 from functools import partial
 
-from shared.common_query import A, Has
+from shared.common_query import A
+from shared.common_query.aggregations import Has
 from shared.querysets.sqlalchemy import SQLAlchemyQuerySet
 
 from sqlalchemy import (

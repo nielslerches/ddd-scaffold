@@ -3,7 +3,8 @@ import unittest
 from dataclasses import dataclass
 from typing import List
 
-from shared.common_query import Count, A
+from shared.common_query import A
+from shared.common_query.aggregations import Count
 from shared.querysets.memory import MemoryQuerySet
 
 

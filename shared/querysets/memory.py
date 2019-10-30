@@ -14,8 +14,14 @@ from shared.common_query import (
     LazyObject,
     Neg,
     UnaryOperation,
-    Has,
+)
+from shared.common_query.aggregations import (
+    Aggregation,
     Count,
+    Sum,
+    Has,
+    Mean,
+    Collect,
 )
 from shared.querysets.base import QuerySet
 
@@ -91,19 +97,17 @@ class LambdaCompiler:
         elif isinstance(node, UnaryOperation):
             return lambda item: node.reducer(self.compile(node.operand)(item))
 
-        elif isinstance(node, Has):
-            def compiled_Has(item):
-                queryset = MemoryQuerySet(get_objects=lambda: self.get_value(item, node.field), compiler=self)
-                queryset = queryset if node.query is None else queryset.filter(node.query)
-                return len(list(queryset)) > 0
-            return compiled_Has
-
-        elif isinstance(node, Count):
-            def compiled_Count(item):
-                queryset = MemoryQuerySet(get_objects=lambda: self.get_value(item, node.field), compiler=self)
-                queryset = queryset if node.query is None else queryset.filter(node.query)
-                return len(list(queryset))
-            return compiled_Count
+        elif isinstance(node, Aggregation):
+            def compiled_Aggregation(context):
+                if isinstance(context, MemoryQuerySet):
+                    return node.reducer(context.filter(node.query))
+                return node.reducer(
+                    MemoryQuerySet(
+                        get_objects=lambda: self.get_value(context, node.field),
+                        compiler=self,
+                    ).filter(node.query)
+                )
+            return compiled_Aggregation
 
         else:
             return lambda item: node if not isinstance(node, LazyObject) else self.compile(node)(item)
@@ -125,7 +129,7 @@ class MemoryQuerySet(QuerySet):
         return self
 
     def filter(self, *queries):
-        callbacks = [self.compiler.compile(query) for query in queries]
+        callbacks = [self.compiler.compile(query) for query in queries if query is not None]
 
         def _filter(objects):
             return [
@@ -142,7 +146,7 @@ class MemoryQuerySet(QuerySet):
         )
 
     def exclude(self, *queries):
-        callbacks = [self.compiler.compile(query) for query in queries]
+        callbacks = [self.compiler.compile(query) for query in queries if query is not None]
 
         def _exclude(objects):
             return [
@@ -189,6 +193,9 @@ class MemoryQuerySet(QuerySet):
     def last(self):
         objects = list(self)
         return objects[-1] if objects else None
+
+    def aggregate(self, aggregation: Aggregation):
+        return aggregation.reducer(self)
 
     def __iter__(self):
         objects = self.get_objects()

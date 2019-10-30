@@ -293,6 +293,7 @@ class FilterableMixin:
         self.query = query
 
     def where(self, query):
+
         return type(self)(
             field=self.field,
             query=query,
@@ -303,11 +304,3 @@ class FilterableMixin:
         if self.query is not None:
             s = s + '.where(' + repr(self.query) + ')'
         return s
-
-
-class Has(FilterableMixin, ArithmeticOperable, Comparable):
-    pass
-
-
-class Count(FilterableMixin, ArithmeticOperable, Comparable):
-    pass

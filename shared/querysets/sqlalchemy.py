@@ -14,9 +14,8 @@ from shared.common_query import (
     LazyObject,
     Neg,
     UnaryOperation,
-    Has,
-    Count,
 )
+from shared.common_query.aggregations import Aggregation, Has
 from shared.querysets.base import QuerySet
 
 import sqlalchemy as sa
@@ -46,11 +45,12 @@ class SQLAlchemyCompiler:
                 ],
             )
 
-        elif isinstance(node, Has):
-            return lambda model: getattr(
-                model,
-                node.field,
-            ).any(self.compile(node.query)(sa.inspect(model).relationships[node.field].mapper.class_))
+        elif isinstance(node, Aggregation):
+            if isinstance(node, Has):
+                return lambda model: getattr(
+                    model,
+                    node.field,
+                ).any(self.compile(node.query)(sa.inspect(model).relationships[node.field].mapper.class_))
 
         else:
             return lambda model: node if not isinstance(node, LazyObject) else self.compile(node)(model)
