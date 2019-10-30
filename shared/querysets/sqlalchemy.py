@@ -24,12 +24,6 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.orm.query import Query
 
 
-def get_class_by_tablename(tablename, Base):
-    for c in Base._decl_class_registry.values():
-        if hasattr(c, '__tablename__') and c.__tablename__ == tablename:
-            return c
-
-
 @dataclass(frozen=True)
 class SQLAlchemyCompiler:
     def compile(self, node):
@@ -56,14 +50,7 @@ class SQLAlchemyCompiler:
             return lambda model: getattr(
                 model,
                 node.field,
-            ).any(
-                self.compile(node.query)(
-                    get_class_by_tablename(
-                        tuple(sa.inspect(model).relationships[node.field].remote_side)[0].table.name,
-                        model.__bases__[0]
-                    )
-                )
-            )
+            ).any(self.compile(node.query)(sa.inspect(model).relationships[node.field].mapper.class_))
 
         else:
             return lambda model: node if not isinstance(node, LazyObject) else self.compile(node)(model)

@@ -3,10 +3,9 @@ import unittest
 from decimal import Decimal
 from functools import partial
 
-from shared.common_query import Count, A, Has
+from shared.common_query import A, Has
 from shared.querysets.sqlalchemy import SQLAlchemyQuerySet
 
-import sqlalchemy as sa
 from sqlalchemy import (
     create_engine,
     Column as NullColumn,
@@ -17,7 +16,6 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
-engine = create_engine('sqlite:///:memory:', echo=True)
 Base = declarative_base()
 Column = partial(NullColumn, nullable=False)
 
@@ -40,15 +38,12 @@ class OrderItem(Base):
     line_total = Column(Numeric(precision=2, scale=9))
 
 
-Base.metadata.create_all(engine)
-session = sessionmaker(bind=engine)()
-
-# print(Base.__metadata__)
-print(sa.inspect(Order).relationships['items'].__dict__)
-
-
-class MemoryQuerySetTestCase(unittest.TestCase):
+class SQLAlchemyQuerySetTestCase(unittest.TestCase):
     def setUp(self):
+        engine = create_engine('sqlite:///:memory:', echo=True)
+        Base.metadata.create_all(engine)
+        session = sessionmaker(bind=engine)()
+
         order = Order(total=Decimal('499.00'))
         session.add(order)
         session.add(OrderItem(order=order, line_total=Decimal('499.00')))
@@ -60,8 +55,10 @@ class MemoryQuerySetTestCase(unittest.TestCase):
             model=Order,
         )
 
-    def test_count(self):
+    def test_no_filter(self):
         self.assertEqual(len(list(self.queryset.all())), 2)
+
+    def test_with_filter(self):
         self.assertEqual(
             len(
                 list(
@@ -70,6 +67,8 @@ class MemoryQuerySetTestCase(unittest.TestCase):
             ),
             1
         )
+
+    def test_has_items(self):
         self.assertEqual(
             len(
                 list(
@@ -78,6 +77,8 @@ class MemoryQuerySetTestCase(unittest.TestCase):
             ),
             1
         )
+
+    def test_has_items_where(self):
         self.assertEqual(
             len(
                 list(
