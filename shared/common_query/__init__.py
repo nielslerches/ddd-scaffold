@@ -287,7 +287,7 @@ class L(Accessible):
         return 'L({!r})'.format(self.value)
 
 
-class Has(ArithmeticOperable, Comparable):
+class FilterableMixin:
     def __init__(self, field, query=None):
         self.field = field
         self.query = query
@@ -305,19 +305,9 @@ class Has(ArithmeticOperable, Comparable):
         return s
 
 
-class Count(ArithmeticOperable, Comparable):
-    def __init__(self, field, query=None):
-        self.field = field
-        self.query = query
+class Has(FilterableMixin, ArithmeticOperable, Comparable):
+    pass
 
-    def where(self, query):
-        return type(self)(
-            field=self.field,
-            query=query,
-        )
 
-    def __repr__(self):
-        s = self.__class__.__name__ + '(' + repr(self.field) + ')'
-        if self.query is not None:
-            s = s + '.where(' + repr(self.query) + ')'
-        return s
+class Count(FilterableMixin, ArithmeticOperable, Comparable):
+    pass

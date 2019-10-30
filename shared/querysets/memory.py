@@ -3,8 +3,6 @@ from functools import reduce
 from itertools import islice, tee
 from typing import Callable, Any, Iterable, List
 
-import inspect
-
 from shared.common_query import (
     A,
     BinaryOperation,
@@ -43,15 +41,15 @@ class LambdaCompiler:
             if isinstance(node, GetAttr):
                 return lambda item: getattr(
                     self.compile(node.parent)(item),
-                    node.arguments if not isinstance(node.arguments, LazyObject) else self.compile(node.arguments)(item)
+                    self.compile(node.arguments)(item)
                 )
 
             elif isinstance(node, Call):
                 args, kwargs = node.arguments
                 return lambda item: self.compile(node.parent)(item)(
-                    *[(arg if not isinstance(arg, LazyObject) else self.compile(arg)(item)) for arg in args],
+                    *[(self.compile(arg)(item)) for arg in args],
                     **{
-                        kw: (arg if not isinstance(arg, LazyObject) else self.compile(arg)(item))
+                        kw: (self.compile(arg)(item))
                         for kw, arg
                         in kwargs.items()
                     }
@@ -59,23 +57,23 @@ class LambdaCompiler:
 
             elif isinstance(node, GetItem):
                 return lambda item: self.compile(node.parent)(item)[
-                    node.arguments if not isinstance(node.arguments, LazyObject) else self.compile(node.arguments)(item)
+                    self.compile(node.arguments)(item)
                 ]
 
             elif isinstance(node, L):
-                return lambda item: node.value(item) if not isinstance(node.value, LazyObject) and callable(node.value) else node.value
+                return lambda item: node.value
 
             return lambda item: self.get_value(
                 item,
-                node.arguments if not isinstance(node.arguments, LazyObject) else self.compile(node.arguments)(item)
+                self.compile(node.arguments)(item)
             )
 
         elif isinstance(node, BinaryOperation):
             if isinstance(node, BooleanOperation):
                 return lambda item: all(
                     node.reducer(
-                        (self.compile(a)(item) if isinstance(a, LazyObject) else a),
-                        (self.compile(b)(item) if isinstance(b, LazyObject) else b)
+                        (self.compile(a)(item)),
+                        (self.compile(b)(item))
                     )
                     for a, b
                     in nwise(node.operands)
@@ -84,14 +82,14 @@ class LambdaCompiler:
             return lambda item: reduce(
                 node.reducer,
                 [
-                    (self.compile(operand)(item) if isinstance(operand, LazyObject) else operand)
+                    (self.compile(operand)(item))
                     for operand
                     in node.operands
                 ]
             )
 
         elif isinstance(node, UnaryOperation):
-            return lambda item: node.reducer(self.compile(node.operand)(item)) if isinstance(node.operand, LazyObject) else node.reducer(node.operand)
+            return lambda item: node.reducer(self.compile(node.operand)(item))
 
         elif isinstance(node, Has):
             def compiled_Has(item):
@@ -108,7 +106,7 @@ class LambdaCompiler:
             return compiled_Count
 
         else:
-            return node
+            return lambda item: node if not isinstance(node, LazyObject) else self.compile(node)(item)
 
 
 @dataclass(frozen=True)
