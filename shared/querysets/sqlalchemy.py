@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from functools import reduce
 from itertools import islice, tee
-from typing import Callable, Any, Iterable, List, Optional
+from typing import Callable, Any, Iterable, List, Optional, Type
 
 from shared.common_query import (
     A,
@@ -21,6 +21,10 @@ from shared.querysets.base import QuerySet
 import sqlalchemy as sa
 from sqlalchemy.orm.session import Session
 from sqlalchemy.orm.query import Query
+
+
+class SQLAlchemyDataEntity:
+    pass
 
 
 @dataclass(frozen=True)
@@ -59,7 +63,7 @@ class SQLAlchemyCompiler:
 @dataclass(frozen=True)
 class SQLAlchemyQuerySet(QuerySet):
     session: Session
-    model: Any
+    model: Type[SQLAlchemyDataEntity]
     compiler: SQLAlchemyCompiler = field(default_factory=lambda: SQLAlchemyCompiler())
     query: Optional[Query] = field(default=None)
 
